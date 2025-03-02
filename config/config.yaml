@@ -1,0 +1,8 @@
+port: 8080
+rabbitmq_url: "amqp://guest:guest@localhost:5672/"
+rabbitmq-queue-name: "default_queue"
+rabbitmq_exchange_name: "default_exchange"
+rabbitmq_exchange_type: "direct"
+
+couchbase_username: "Administrator"
+couchbase_password: "123456789"

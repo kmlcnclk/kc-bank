@@ -12,6 +12,7 @@ type AppConfig struct {
 	RabbitMQQueueName    string `yaml:"rabbitmq_queue_name" mapstructure:"rabbitmq_queue_name"`
 	RabbitMQExchangeName string `yaml:"rabbitmq_exchange_name" mapstructure:"rabbitmq_exchange_name"`
 	RabbitMQExchangeType string `yaml:"rabbitmq_exchange_type" mapstructure:"rabbitmq_exchange_type"`
+	CouchbaseUrl         string `yaml:"couchbase_url" mapstructure:"couchbase_url"`
 	CouchbaseUsername    string `yaml:"couchbase_username" mapstructure:"couchbase_username"`
 	CouchbasePassword    string `yaml:"couchbase_password" mapstructure:"couchbase_password"`
 }

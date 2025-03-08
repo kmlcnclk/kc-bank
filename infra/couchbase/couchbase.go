@@ -11,21 +11,8 @@ type Couchbase struct {
 	cluster *gocb.Cluster
 }
 
-func (c *Couchbase) NewBucket(name string) (*gocb.Bucket, error) {
-	bucket := c.cluster.Bucket(name)
-
-	err := bucket.WaitUntilReady(3*time.Second, &gocb.WaitUntilReadyOptions{})
-
-	if err != nil {
-		zap.L().Fatal("Failed to open bucket", zap.Error(err))
-		return nil, err
-	}
-
-	return bucket, nil
-}
-
-func NewCouchbase(username, password string) (*Couchbase, error) {
-	cluster, err := ConnectCouchbase(username, password)
+func NewCouchbase(url, username, password string) (*Couchbase, error) {
+	cluster, err := ConnectCouchbase(url, username, password)
 
 	if err != nil {
 		zap.L().Error("Failed to initialize Couchbase:", zap.Error(err))
@@ -35,8 +22,8 @@ func NewCouchbase(username, password string) (*Couchbase, error) {
 	return &Couchbase{cluster: cluster}, nil
 }
 
-func ConnectCouchbase(username, password string) (*gocb.Cluster, error) {
-	cluster, err := gocb.Connect("couchbase://localhost", gocb.ClusterOptions{
+func ConnectCouchbase(url, username, password string) (*gocb.Cluster, error) {
+	cluster, err := gocb.Connect(url, gocb.ClusterOptions{
 		TimeoutsConfig: gocb.TimeoutsConfig{
 			ConnectTimeout: 3 * time.Second,
 			KVTimeout:      3 * time.Second,
@@ -58,14 +45,21 @@ func ConnectCouchbase(username, password string) (*gocb.Cluster, error) {
 	return cluster, nil
 }
 
-func InitializeCouchbase(username, password string) *gocb.Bucket {
-	cb, err := NewCouchbase(username, password)
+func (c *Couchbase) NewBucket(bucketName string) (*gocb.Bucket, error) {
+	bucket := c.cluster.Bucket(bucketName)
+
+	err := bucket.WaitUntilReady(3*time.Second, &gocb.WaitUntilReadyOptions{})
 
 	if err != nil {
-		zap.L().Fatal("Failed to initialize Couchbase instance", zap.Error(err))
+		zap.L().Fatal("Failed to open bucket", zap.Error(err))
+		return nil, err
 	}
 
-	bucket, err := cb.NewBucket("users")
+	return bucket, nil
+}
+
+func (c *Couchbase) InitializeBucket(bucketName string) *gocb.Bucket {
+	bucket, err := c.NewBucket(bucketName)
 
 	if err != nil {
 		zap.L().Fatal("failed to create new bucket", zap.Error(err))

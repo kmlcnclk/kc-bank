@@ -30,10 +30,17 @@ func main() {
 	// defer rmq.Close()
 
 	// Initialize Couchbase
-	bucket := couchbase.InitializeCouchbase(appConfig.CouchbaseUsername, appConfig.CouchbasePassword)
+	cb, err := couchbase.NewCouchbase(appConfig.CouchbaseUrl, appConfig.CouchbaseUsername, appConfig.CouchbasePassword)
+
+	if err != nil {
+		zap.L().Fatal("Failed to initialize Couchbase instance", zap.Error(err))
+	}
+
+	// Initialize user bucket
+	userBucket := cb.InitializeBucket("users")
 
 	// Dependency Injection
-	userRepository := repository.NewUserRepository(bucket)
+	userRepository := repository.NewUserRepository(userBucket)
 	passwordService := services.NewPasswordService()
 	userCommand := command.NewCommandHandler(userRepository, passwordService)
 	userQuery := query.NewUserQueryService(userRepository)

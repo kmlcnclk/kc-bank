@@ -6,3 +6,4 @@ rabbitmq_exchange_type: "direct"
 
 couchbase_username: "Administrator"
 couchbase_password: "123456789"
+couchbase_url: "couchbase://localhost"

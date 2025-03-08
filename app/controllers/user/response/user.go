@@ -10,7 +10,6 @@ type UserResponse struct {
 	FirstName string    `json:"firstName"`
 	LastName  string    `json:"lastName"`
 	Email     string    `json:"email"`
-	Password  string    `json:"password"`
 	Age       int32     `json:"age"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`

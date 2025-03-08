@@ -11,15 +11,8 @@ type Couchbase struct {
 	cluster *gocb.Cluster
 }
 
-func NewCouchbase(url, username, password string) (*Couchbase, error) {
-	cluster, err := ConnectCouchbase(url, username, password)
-
-	if err != nil {
-		zap.L().Error("Failed to initialize Couchbase:", zap.Error(err))
-		return nil, err // Return nil instead of an invalid instance.
-	}
-
-	return &Couchbase{cluster: cluster}, nil
+func NewCouchbase(cluster *gocb.Cluster) *Couchbase {
+	return &Couchbase{cluster: cluster}
 }
 
 func ConnectCouchbase(url, username, password string) (*gocb.Cluster, error) {

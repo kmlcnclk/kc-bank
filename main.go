@@ -30,23 +30,27 @@ func main() {
 	// defer rmq.Close()
 
 	// Initialize Couchbase
-	cb, err := couchbase.NewCouchbase(appConfig.CouchbaseUrl, appConfig.CouchbaseUsername, appConfig.CouchbasePassword)
+
+	cluster, err := couchbase.ConnectCouchbase(appConfig.CouchbaseUrl, appConfig.CouchbaseUsername, appConfig.CouchbasePassword)
 
 	if err != nil {
-		zap.L().Fatal("Failed to initialize Couchbase instance", zap.Error(err))
+		zap.L().Error("Failed to initialize Couchbase:", zap.Error(err))
 	}
+
+	cb := couchbase.NewCouchbase(cluster)
 
 	// Initialize user bucket
 	userBucket := cb.InitializeBucket("users")
 
 	// Dependency Injection
-	userRepository := repository.NewUserRepository(userBucket)
+	userRepository := repository.NewUserRepository(cluster, userBucket)
 	passwordService := services.NewPasswordService()
 	userCommand := command.NewCommandHandler(userRepository, passwordService)
 	userQuery := query.NewUserQueryService(userRepository)
 
 	// Initialize controllers
 	getUserHandler := userController.NewGetUserHandler(userQuery)
+	getUserAllHandler := userController.NewGetUserAllHandler(userQuery)
 	createUserHandler := userController.NewCreateUserHandler(userCommand)
 
 	// Initialize healthcheck handler
@@ -59,7 +63,7 @@ func main() {
 	server.InitMiddlewares(app)
 
 	// Init routers
-	server.InitRouters(app, getUserHandler, createUserHandler, healthcheckHandler)
+	server.InitRouters(app, getUserHandler, createUserHandler, getUserAllHandler, healthcheckHandler)
 
 	// Start server
 	server.Start(app, appConfig)

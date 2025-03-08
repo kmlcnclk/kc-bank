@@ -9,6 +9,7 @@ import (
 
 type IUserQueryService interface {
 	GetUser(ctx context.Context, Id string) (*domain.User, error)
+	GetAllUsers(ctx context.Context) ([]*domain.User, error)
 }
 
 type userQueryService struct {
@@ -33,4 +34,14 @@ func (u *userQueryService) GetUser(ctx context.Context, Id string) (*domain.User
 	}
 
 	return user, nil
+}
+
+func (u *userQueryService) GetAllUsers(ctx context.Context) ([]*domain.User, error) {
+	users, err := u.userRepository.GetAllUsers(ctx)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return users, nil
 }

@@ -13,15 +13,18 @@ import (
 type IUserRepository interface {
 	CreateUser(ctx context.Context, user *domain.User) error
 	GetUser(ctx context.Context, id string) (*domain.User, error)
+	GetAllUsers(ctx context.Context) ([]*domain.User, error)
 }
 
 type userRepository struct {
-	bucket *gocb.Bucket
+	cluster *gocb.Cluster
+	bucket  *gocb.Bucket
 }
 
-func NewUserRepository(bucket *gocb.Bucket) IUserRepository {
+func NewUserRepository(cluster *gocb.Cluster, bucket *gocb.Bucket) IUserRepository {
 	return &userRepository{
-		bucket: bucket,
+		cluster: cluster,
+		bucket:  bucket,
 	}
 }
 
@@ -76,4 +79,36 @@ func (r *userRepository) GetUser(ctx context.Context, id string) (*domain.User, 
 	}
 
 	return &user, nil
+}
+
+func (r *userRepository) GetAllUsers(ctx context.Context) ([]*domain.User, error) {
+	query := "SELECT META(u).id, u.* FROM `users` u ORDER BY u.CreatedAt DESC"
+
+	rows, err := r.cluster.Query(query, &gocb.QueryOptions{
+		Context: ctx,
+	})
+
+	if err != nil {
+		zap.L().Error("Failed to execute query", zap.Error(err))
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var users []*domain.User
+	for rows.Next() {
+		var user domain.User
+		if err := rows.Row(&user); err != nil {
+			zap.L().Error("Failed to scan row", zap.Error(err))
+			return nil, err
+		}
+		users = append(users, &user)
+	}
+
+	if err := rows.Err(); err != nil {
+		zap.L().Error("Error iterating rows", zap.Error(err))
+		return nil, err
+	}
+
+	return users, nil
 }

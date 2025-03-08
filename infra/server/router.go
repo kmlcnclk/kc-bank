@@ -11,6 +11,7 @@ import (
 func InitRouters(app *fiber.App,
 	getUserHandler *user.GetUserHandler,
 	createUserHandler *user.CreateUserHandler,
+	getUserAllHandler *user.GetUserAllHandler,
 	healthcheckHandler *healthcheck.HealthCheckHandler,
 
 ) {
@@ -19,6 +20,7 @@ func InitRouters(app *fiber.App,
 
 	userGroup := app.Group("/api/v1/user")
 
+	userGroup.Get("/", handler.Handle[user.GetUserAllRequest, user.GetUserAllResponse](getUserAllHandler))
 	userGroup.Get("/:id", handler.Handle[user.GetUserRequest, user.GetUserResponse](getUserHandler))
 	userGroup.Post("/", handler.Handle[user.CreateUserRequest, user.CreateUserResponse](createUserHandler))
 }

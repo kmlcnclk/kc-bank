@@ -3,11 +3,13 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 	"kc-bank/domain"
 	"time"
 
 	"github.com/couchbase/gocb/v2"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 )
 
 type IAccountRepository interface {
@@ -117,7 +119,7 @@ func (r *accountRepository) GetAllAccounts(ctx context.Context) ([]*domain.Accou
 }
 
 func (r *accountRepository) FindByIban(ctx context.Context, iban string) (string, error) {
-	query := "SELECT META(a).id, a.id FROM `accounts` a WHERE a.Iban = $iban LIMIT 1"
+	query := "SELECT Id FROM `accounts` a WHERE a.Iban = $iban LIMIT 1"
 
 	rows, err := r.cluster.Query(query, &gocb.QueryOptions{
 		Context:         ctx,
@@ -181,29 +183,58 @@ func (r *accountRepository) CheckAmountForFromIban(ctx context.Context, iban str
 }
 
 func (r *accountRepository) TransferMoney(ctx context.Context, fromIbanId, toIbanId string, amount float64) error {
-	// r.bucket.DefaultCollection().MutateIn(fromIbanId, []gocb.MutateInSpec{
-	// 	gocb.DecrementSpec("Balance", int64(amount), nil),
-	// }, &gocb.MutateInOptions{
-	// 	Context: ctx,
-	// })
+	var g errgroup.Group
 
-	// // Perform the transfer within a transaction
-	// _, err := r.cluster.Query(`
-	// 	UPDATE accounts SET Balance = Balance - $amount WHERE Iban = $fromIban;
-	// 	UPDATE accounts SET Balance = Balance + $amount WHERE Iban = $toIban;
-	// `, &gocb.QueryOptions{
-	// 	Context: ctx,
-	// 	NamedParameters: map[string]interface{}{
-	// 		"amount":   amount,
-	// 		"fromIban": fromIban,
-	// 		"toIban":   toIban,
-	// 	},
-	// 	Adhoc: true,
-	// })
-	// if err != nil {
-	// 	zap.L().Error("Failed to execute transfer query", zap.Error(err))
-	// 	return err
-	// }
+	// Using the errgroup to handle errors concurrently
+	g.Go(func() error {
+		fromAccount, err := r.GetAccount(ctx, fromIbanId)
+		if err != nil {
+			zap.L().Error("Failed to get from account", zap.String("fromIbanId", fromIbanId), zap.Error(err))
+			return fmt.Errorf("failed to get from account: %w", err)
+		}
+
+		// Subtract the amount from the balance of the "from" account
+		newBalanceForFromAccount := fromAccount.Balance - amount
+
+		_, err = r.bucket.DefaultCollection().MutateIn(fromIbanId, []gocb.MutateInSpec{
+			gocb.ReplaceSpec("Balance", newBalanceForFromAccount, &gocb.ReplaceSpecOptions{IsXattr: false}),
+		}, &gocb.MutateInOptions{Context: ctx})
+
+		if err != nil {
+			zap.L().Error("Failed to update balance for from account", zap.String("fromIbanId", fromIbanId), zap.Error(err))
+			return fmt.Errorf("failed to update balance for from account: %w", err)
+		}
+
+		return nil
+	})
+
+	// Second Goroutine for updating the "to" account
+	g.Go(func() error {
+		toAccount, err := r.GetAccount(ctx, toIbanId)
+		if err != nil {
+			zap.L().Error("Failed to get to account", zap.String("toIbanId", toIbanId), zap.Error(err))
+			return fmt.Errorf("failed to get to account: %w", err)
+		}
+
+		// Add the amount to the balance of the "to" account
+		newBalanceForToAccount := toAccount.Balance + amount
+
+		_, err = r.bucket.DefaultCollection().MutateIn(toIbanId, []gocb.MutateInSpec{
+			gocb.ReplaceSpec("Balance", newBalanceForToAccount, &gocb.ReplaceSpecOptions{IsXattr: false}),
+		}, &gocb.MutateInOptions{Context: ctx})
+
+		if err != nil {
+			zap.L().Error("Failed to update balance for to account", zap.String("toIbanId", toIbanId), zap.Error(err))
+			return fmt.Errorf("failed to update balance for to account: %w", err)
+		}
+
+		return nil
+	})
+
+	// Wait for both Goroutines to complete and return the first error if any
+	if err := g.Wait(); err != nil {
+		return err
+	}
 
 	return nil
 }

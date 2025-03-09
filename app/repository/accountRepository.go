@@ -14,6 +14,9 @@ type IAccountRepository interface {
 	CreateAccount(ctx context.Context, account *domain.Account) error
 	GetAccount(ctx context.Context, id string) (*domain.Account, error)
 	GetAllAccounts(ctx context.Context) ([]*domain.Account, error)
+	FindByIban(ctx context.Context, iban string) (string, error)
+	CheckAmountForFromIban(ctx context.Context, iban string, amount float64) (bool, error)
+	TransferMoney(ctx context.Context, fromIbanId, toIbanId string, amount float64) error
 }
 
 type accountRepository struct {
@@ -82,7 +85,7 @@ func (r *accountRepository) GetAccount(ctx context.Context, id string) (*domain.
 }
 
 func (r *accountRepository) GetAllAccounts(ctx context.Context) ([]*domain.Account, error) {
-	query := "SELECT META(u).id, u.* FROM `accounts` u ORDER BY u.CreatedAt DESC"
+	query := "SELECT META(a).id, a.* FROM `accounts` a ORDER BY a.CreatedAt DESC"
 
 	rows, err := r.cluster.Query(query, &gocb.QueryOptions{
 		Context: ctx,
@@ -111,4 +114,96 @@ func (r *accountRepository) GetAllAccounts(ctx context.Context) ([]*domain.Accou
 	}
 
 	return accounts, nil
+}
+
+func (r *accountRepository) FindByIban(ctx context.Context, iban string) (string, error) {
+	query := "SELECT META(a).id, a.id FROM `accounts` a WHERE a.Iban = $iban LIMIT 1"
+
+	rows, err := r.cluster.Query(query, &gocb.QueryOptions{
+		Context:         ctx,
+		NamedParameters: map[string]interface{}{"iban": iban},
+		Adhoc:           true,
+	})
+
+	if err != nil {
+		zap.L().Error("Failed to execute query", zap.Error(err))
+		return "", err
+	}
+
+	defer rows.Close()
+
+	var account struct {
+		Id string
+	}
+
+	if rows.Next() {
+		if err := rows.Row(&account); err != nil {
+			zap.L().Error("Failed to scan row", zap.Error(err))
+			return "", err
+		}
+
+		return account.Id, nil
+	}
+
+	return "", nil
+}
+
+func (r *accountRepository) CheckAmountForFromIban(ctx context.Context, iban string, amount float64) (bool, error) {
+	query := "SELECT Balance FROM `accounts` WHERE Iban = $iban LIMIT 1"
+
+	rows, err := r.cluster.Query(query, &gocb.QueryOptions{
+		Context:         ctx,
+		NamedParameters: map[string]interface{}{"iban": iban},
+		Adhoc:           true,
+	})
+	if err != nil {
+		zap.L().Error("Failed to execute query", zap.Error(err))
+		return false, err
+	}
+	defer rows.Close()
+
+	var rawBalance struct {
+		Balance float64
+	}
+
+	// Check if there is a row
+	if rows.Next() {
+		if err := rows.Row(&rawBalance); err != nil {
+			zap.L().Error("Failed to scan row", zap.Error(err))
+			return false, err
+		}
+
+		return rawBalance.Balance >= amount, nil
+	}
+
+	// No matching account found
+	return false, nil
+}
+
+func (r *accountRepository) TransferMoney(ctx context.Context, fromIbanId, toIbanId string, amount float64) error {
+	// r.bucket.DefaultCollection().MutateIn(fromIbanId, []gocb.MutateInSpec{
+	// 	gocb.DecrementSpec("Balance", int64(amount), nil),
+	// }, &gocb.MutateInOptions{
+	// 	Context: ctx,
+	// })
+
+	// // Perform the transfer within a transaction
+	// _, err := r.cluster.Query(`
+	// 	UPDATE accounts SET Balance = Balance - $amount WHERE Iban = $fromIban;
+	// 	UPDATE accounts SET Balance = Balance + $amount WHERE Iban = $toIban;
+	// `, &gocb.QueryOptions{
+	// 	Context: ctx,
+	// 	NamedParameters: map[string]interface{}{
+	// 		"amount":   amount,
+	// 		"fromIban": fromIban,
+	// 		"toIban":   toIban,
+	// 	},
+	// 	Adhoc: true,
+	// })
+	// if err != nil {
+	// 	zap.L().Error("Failed to execute transfer query", zap.Error(err))
+	// 	return err
+	// }
+
+	return nil
 }

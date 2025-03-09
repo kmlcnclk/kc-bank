@@ -69,6 +69,7 @@ func main() {
 	getAccountHandler := accountController.NewGetAccountHandler(accountQuery)
 	getAccountAllHandler := accountController.NewGetAccountAllHandler(accountQuery)
 	createAccountHandler := accountController.NewCreateAccountHandler(accountCommand)
+	transferMoneyHandler := accountController.NewTransferMoneyHandler(accountCommand)
 
 	// Initialize healthcheck handler
 	healthcheckHandler := healthcheck.NewHealthCheckHandler()
@@ -89,6 +90,7 @@ func main() {
 		getAccountHandler,
 		getAccountAllHandler,
 		createAccountHandler,
+		transferMoneyHandler,
 	)
 
 	// Start server

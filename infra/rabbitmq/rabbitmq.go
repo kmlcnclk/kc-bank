@@ -2,7 +2,14 @@ package rabbitmq
 
 import (
 	"github.com/streadway/amqp"
+	"go.uber.org/zap"
 )
+
+type IRabbitMQService interface {
+	Publish(exchange, routingKey string, body []byte) error
+	Consume() (<-chan amqp.Delivery, error)
+	Close()
+}
 
 type RabbitMQ struct {
 	conn    *amqp.Connection
@@ -57,6 +64,8 @@ func NewRabbitMQ(url, queueName, exchangeName, exchangeType string) (*RabbitMQ, 
 		return nil, err
 	}
 
+	zap.L().Info("RabbitMQ connection established")
+
 	return &RabbitMQ{
 		conn:    conn,
 		channel: ch,
@@ -71,7 +80,7 @@ func (r *RabbitMQ) Publish(exchange, routingKey string, body []byte) error {
 		false,      // mandatory
 		false,      // immediate
 		amqp.Publishing{
-			ContentType: "text/plain",
+			ContentType: "application/json",
 			Body:        body,
 		})
 	return err

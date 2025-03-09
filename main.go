@@ -12,6 +12,7 @@ import (
 	userCommand "kc-bank/app/services/user/command"
 	userQuery "kc-bank/app/services/user/query"
 	"kc-bank/infra/couchbase"
+	"kc-bank/infra/rabbitmq"
 	"kc-bank/infra/server"
 	"kc-bank/pkg/config"
 	_ "kc-bank/pkg/log"
@@ -24,13 +25,18 @@ func main() {
 
 	zap.L().Info("app starting...")
 
-	// rmq, err := rabbitmq.NewRabbitMQ(appConfig.RabbitMQURL, "my_queue", "my_exchange", "direct")
+	rmq, err := rabbitmq.NewRabbitMQ(
+		appConfig.RabbitMQURL,
+		appConfig.RabbitMQTransferMoneyQueueName,
+		appConfig.RabbitMQTransferMoneyExchangeName,
+		appConfig.RabbitMQTransferMoneyExchangeType,
+	)
 
-	// if err != nil {
-	// 	zap.L().Fatal("failed to initialize RabbitMQ", zap.Error(err))
-	// }
+	if err != nil {
+		zap.L().Fatal("failed to initialize RabbitMQ", zap.Error(err))
+	}
 
-	// defer rmq.Close()
+	defer rmq.Close()
 
 	// Initialize Couchbase
 
@@ -57,7 +63,7 @@ func main() {
 	// Dependency Injection for Account
 	accountRepository := repository.NewAccountRepository(cluster, accountBucket)
 	ibanService := services.NewIbanService()
-	accountCommand := accountCommand.NewCommandHandler(accountRepository, ibanService)
+	accountCommand := accountCommand.NewCommandHandler(accountRepository, ibanService, rmq, appConfig.RabbitMQTransferMoneyExchangeName)
 	accountQuery := accountQuery.NewAccountQueryService(accountRepository)
 
 	// Initialize controllers for User
@@ -70,6 +76,7 @@ func main() {
 	getAccountAllHandler := accountController.NewGetAccountAllHandler(accountQuery)
 	createAccountHandler := accountController.NewCreateAccountHandler(accountCommand)
 	transferMoneyHandler := accountController.NewTransferMoneyHandler(accountCommand)
+	transferMoneyWithRabbitMQHandler := accountController.NewTransferMoneyWithRabbitMQHandler(accountCommand)
 
 	// Initialize healthcheck handler
 	healthcheckHandler := healthcheck.NewHealthCheckHandler()
@@ -91,10 +98,13 @@ func main() {
 		getAccountAllHandler,
 		createAccountHandler,
 		transferMoneyHandler,
+		transferMoneyWithRabbitMQHandler,
 	)
 
 	// Start server
 	server.Start(app, appConfig)
+
+	go accountCommand.TransferMoneyWithRabbitMQConsumer()
 
 	// Graceful shutdown
 	server.GracefulShutdown(app)

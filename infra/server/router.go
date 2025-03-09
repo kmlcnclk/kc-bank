@@ -18,6 +18,7 @@ func InitRouters(app *fiber.App,
 	getAccountAllHandler *account.GetAccountAllHandler,
 	createAccountHandler *account.CreateAccountHandler,
 	transferMoneyHandler *account.TransferMoneyHandler,
+	transferMoneyWithRabbitMQHandler *account.TransferMoneyWithRabbitMQHandler,
 ) {
 
 	app.Get("/healthcheck", handler.Handle[healthcheck.HealthCheckRequest, healthcheck.HealthCheckResponse](healthcheckHandler))
@@ -36,4 +37,5 @@ func InitRouters(app *fiber.App,
 	accountGroup.Get("/:id", handler.Handle[account.GetAccountRequest, account.GetAccountResponse](getAccountHandler))
 	accountGroup.Post("/", handler.Handle[account.CreateAccountRequest, account.CreateAccountResponse](createAccountHandler))
 	accountGroup.Post("/transfer-money", handler.Handle[account.TransferMoneyRequest, account.TransferMoneyResponse](transferMoneyHandler))
+	accountGroup.Post("/transfer-money-with-rmq", handler.Handle[account.TransferMoneyWithRabbitMQRequest, account.TransferMoneyWithRabbitMQResponse](transferMoneyWithRabbitMQHandler))
 }

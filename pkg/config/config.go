@@ -7,14 +7,14 @@ import (
 )
 
 type AppConfig struct {
-	Port                 string `yaml:"port" mapstructure:"port"`
-	RabbitMQURL          string `yaml:"rabbitmq_url" mapstructure:"rabbitmq_url"`
-	RabbitMQQueueName    string `yaml:"rabbitmq_queue_name" mapstructure:"rabbitmq_queue_name"`
-	RabbitMQExchangeName string `yaml:"rabbitmq_exchange_name" mapstructure:"rabbitmq_exchange_name"`
-	RabbitMQExchangeType string `yaml:"rabbitmq_exchange_type" mapstructure:"rabbitmq_exchange_type"`
-	CouchbaseUrl         string `yaml:"couchbase_url" mapstructure:"couchbase_url"`
-	CouchbaseUsername    string `yaml:"couchbase_username" mapstructure:"couchbase_username"`
-	CouchbasePassword    string `yaml:"couchbase_password" mapstructure:"couchbase_password"`
+	Port                              string `yaml:"port" mapstructure:"port"`
+	RabbitMQURL                       string `yaml:"rabbitmq_url" mapstructure:"rabbitmq_url"`
+	RabbitMQTransferMoneyQueueName    string `yaml:"rabbitmq_transfer_money_queue_name" mapstructure:"rabbitmq_transfer_money_queue_name"`
+	RabbitMQTransferMoneyExchangeName string `yaml:"rabbitmq_transfer_money_exchange_name" mapstructure:"rabbitmq_transfer_money_exchange_name"`
+	RabbitMQTransferMoneyExchangeType string `yaml:"rabbitmq_transfer_money_exchange_type" mapstructure:"rabbitmq_transfer_money_exchange_type"`
+	CouchbaseUrl                      string `yaml:"couchbase_url" mapstructure:"couchbase_url"`
+	CouchbaseUsername                 string `yaml:"couchbase_username" mapstructure:"couchbase_username"`
+	CouchbasePassword                 string `yaml:"couchbase_password" mapstructure:"couchbase_password"`
 }
 
 func Read() *AppConfig {

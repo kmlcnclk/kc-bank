@@ -3,11 +3,14 @@ package main
 import (
 	"go.uber.org/zap"
 
+	accountController "kc-bank/app/controllers/account"
 	"kc-bank/app/controllers/healthcheck"
 	userController "kc-bank/app/controllers/user"
 	"kc-bank/app/repository"
-	"kc-bank/app/services/command"
-	"kc-bank/app/services/query"
+	accountCommand "kc-bank/app/services/account/command"
+	accountQuery "kc-bank/app/services/account/query"
+	userCommand "kc-bank/app/services/user/command"
+	userQuery "kc-bank/app/services/user/query"
 	"kc-bank/infra/couchbase"
 	"kc-bank/infra/server"
 	"kc-bank/pkg/config"
@@ -42,16 +45,30 @@ func main() {
 	// Initialize user bucket
 	userBucket := cb.InitializeBucket("users")
 
-	// Dependency Injection
+	// Initialize user bucket
+	accountBucket := cb.InitializeBucket("accounts")
+
+	// Dependency Injection for User
 	userRepository := repository.NewUserRepository(cluster, userBucket)
 	passwordService := services.NewPasswordService()
-	userCommand := command.NewCommandHandler(userRepository, passwordService)
-	userQuery := query.NewUserQueryService(userRepository)
+	userCommand := userCommand.NewCommandHandler(userRepository, passwordService)
+	userQuery := userQuery.NewUserQueryService(userRepository)
 
-	// Initialize controllers
+	// Dependency Injection for Account
+	accountRepository := repository.NewAccountRepository(cluster, accountBucket)
+	ibanService := services.NewIbanService()
+	accountCommand := accountCommand.NewCommandHandler(accountRepository, ibanService)
+	accountQuery := accountQuery.NewAccountQueryService(accountRepository)
+
+	// Initialize controllers for User
 	getUserHandler := userController.NewGetUserHandler(userQuery)
 	getUserAllHandler := userController.NewGetUserAllHandler(userQuery)
 	createUserHandler := userController.NewCreateUserHandler(userCommand)
+
+	// Initialize controllers for Account
+	getAccountHandler := accountController.NewGetAccountHandler(accountQuery)
+	getAccountAllHandler := accountController.NewGetAccountAllHandler(accountQuery)
+	createAccountHandler := accountController.NewCreateAccountHandler(accountCommand)
 
 	// Initialize healthcheck handler
 	healthcheckHandler := healthcheck.NewHealthCheckHandler()
@@ -63,7 +80,16 @@ func main() {
 	server.InitMiddlewares(app)
 
 	// Init routers
-	server.InitRouters(app, getUserHandler, createUserHandler, getUserAllHandler, healthcheckHandler)
+	server.InitRouters(
+		app,
+		getUserHandler,
+		createUserHandler,
+		getUserAllHandler,
+		healthcheckHandler,
+		getAccountHandler,
+		getAccountAllHandler,
+		createAccountHandler,
+	)
 
 	// Start server
 	server.Start(app, appConfig)

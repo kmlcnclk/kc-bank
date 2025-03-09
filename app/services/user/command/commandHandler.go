@@ -28,7 +28,6 @@ func NewCommandHandler(userRepository repository.IUserRepository, passwordServic
 }
 
 func (c *commandHandler) Save(ctx context.Context, command Command) error {
-
 	// TODO: add national id check
 
 	hashedPassword, err := c.passwordService.HashPassword(command.Password)

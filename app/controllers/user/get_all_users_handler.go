@@ -3,7 +3,7 @@ package user
 import (
 	"context"
 	"kc-bank/app/controllers/user/response"
-	"kc-bank/app/services/query"
+	"kc-bank/app/services/user/query"
 )
 
 type GetUserAllRequest struct{}

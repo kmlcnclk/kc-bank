@@ -5,12 +5,15 @@ import (
 	"errors"
 	"time"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"
 )
 
 type Request any
 type Response any
+
+var validate = validator.New()
 
 type HandlerInterface[R Request, Res Response] interface {
 	Handle(ctx context.Context, req *R) (*Res, error)
@@ -33,6 +36,11 @@ func Handle[R Request, Res Response](handler HandlerInterface[R, Res]) fiber.Han
 		}
 
 		if err := c.ReqHeaderParser(&req); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		}
+
+		// Validate request
+		if err := validate.Struct(req); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 		}
 

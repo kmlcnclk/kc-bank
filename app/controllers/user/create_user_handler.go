@@ -2,7 +2,7 @@ package user
 
 import (
 	"context"
-	"kc-bank/app/services/command"
+	"kc-bank/app/services/user/command"
 )
 
 type CreateUserRequest struct {
